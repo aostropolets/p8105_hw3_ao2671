@@ -1,0 +1,70 @@
+---
+title: "p8105_hw3_ao2671"
+author: "ao2671"
+date: "10/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(p8105.datasets)
+data("instacart")
+```
+# Problem 1
+
+## Instacart description
+
+Instacart dataset describes the orders in the Instacart system. It has the following variables: `r instacart %>% tbl_vars()`.
+There is a total of `r instacart %>% distinct(order_id) %>% count()` orders by `r instacart %>% distinct(user_id) %>% count()` buyers from `r instacart %>% distinct(department) %>% count()`.
+Orders can have multiple products in them. The dataset also contains the information on the aisles and departments for products purchased.
+There are `r instacart %>% distinct(product_id) %>% count()` unique products purchased. The most popular products purchased 
+is `r instacart %>% count(product_name) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(product_name) `,
+most popular aisle is `r instacart %>%  count(aisle) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(aisle)`
+and the most popular department is
+`r instacart %>% count(department) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(department)`. 
+Orders are placed from `r instacart %>% pull(order_hour_of_day) %>% min()` 
+to `r instacart %>% pull(order_hour_of_day) %>% max()` hours of day.
+
+There are `r instacart %>% distinct(aisle) %>% count()` aisles. The aisles with the most ordered items are `r instacart %>% count(aisle) %>% arrange(desc(n)) %>% filter(row_number()<5) %>% select(aisle)`
+
+## Plotting the number of orders per aisle in aisles with more than 10,000 orders
+
+```{r plot}
+instacart %>% count(aisle) %>% filter(n>10000) %>%
+mutate(aisle = factor(aisle),
+       aisle = fct_reorder(aisle, n)) %>%
+ggplot(aes(x = aisle, y = n)) +
+geom_point() +
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+labs(title = "Number of orders per aisle" )
+
+```
+
+
+Arrange aisles sensibly, and organize your plot so others can read it.
+
+
+## Top 3 products within "baking ingredients","dog food care" and "packaged vegetables fruits" aisles.
+
+```{r aisles}
+instacart %>% filter(aisle %in% c("baking ingredients","dog food care","packaged vegetables fruits")) %>%
+group_by(aisle) %>%
+count(product_name) %>%
+mutate(rank=min_rank(desc(n))) %>%
+filter(rank<4)%>%
+arrange(aisle,rank)  
+```
+
+## Mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week
+```{r aisles}
+instacart %>% filter(product_name %in% c("Pink Lady Apples","Coffee Ice Cream")) %>%
+group_by(product_name,order_dow) %>%
+summarize(mean_hour = mean(order_hour_of_day))  %>%
+pivot_wider(
+  names_from = order_dow,
+  values_from = mean_hour
+)  %>%
+rename( "Mon" = "0", "Tue" = "1","Wed" = "2","Thu" = "3","Fri" = "4","Sat" = "5","Sun" = "6")
+```
+
+
