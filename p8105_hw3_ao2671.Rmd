@@ -67,4 +67,34 @@ pivot_wider(
 rename( "Mon" = "0", "Tue" = "1","Wed" = "2","Thu" = "3","Fri" = "4","Sat" = "5","Sun" = "6")
 ```
 
+# Problem 2
+
+```{r accel_data, message=FALSE}
+accel_data <- read_csv("./data/accel_data.csv") %>%  
+   rename_at(vars(matches("^activity.")), ~ str_remove(., "^activity.")) %>% 
+    mutate(weekday_vs_weekend = case_when(
+                               day == "Saturday" | day == "Sunday" ~ "weekend",
+                               TRUE                                ~ "weekday"
+                                        )
+    ) %>%
+    relocate(week, day_id, day, weekday_v_weekend ) %>%
+    mutate_at(5:1144, as.numeric)
+```
+
+## Description of the accelerometer dataset
+Accelerometer dataset describes the activity of a man along a course of three weeks. There are `r accel_data %>% nrow()` rows, each of them represents one day with activity for each second of the day. We added additional column weekday_vs_weekend to indicate if a day is a weekday or weekend.
+
+
+```{r trends}
+accel_data %>% 
+  mutate(
+    sum_day = rowSums(select(accel_data, 5:1144))
+  ) %>% 
+  select(week, day_id, day, weekday_v_weekend, sum_day) 
+```
+
+In each week, there is one day where the activity is minimal (Monday on Week 1 and Saturdays on Week 2 and 3). It seems that for Saturdays on Week 2 and 3 the activity was not tracked (1 per each minute).
+
+
+
 
