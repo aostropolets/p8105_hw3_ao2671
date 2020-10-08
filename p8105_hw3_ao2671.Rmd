@@ -2,7 +2,7 @@
 title: "p8105_hw3_ao2671"
 author: "ao2671"
 date: "10/6/2020"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
