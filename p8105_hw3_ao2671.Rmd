@@ -8,27 +8,26 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(p8105.datasets)
+library(tidyverse)
+library(patchwork)
 data("instacart")
 ```
-# Problem 1
 
+# Problem 1
 ## Instacart description
 
+There are `r instacart %>% distinct(aisle) %>% count()` aisles. The aisles with the most ordered items are `r instacart %>% count(aisle) %>% arrange(desc(n)) %>% filter(row_number()<5) %>% pull(aisle)`
+
 Instacart dataset describes the orders in the Instacart system. It has the following variables: `r instacart %>% tbl_vars()`.
-There is a total of `r instacart %>% distinct(order_id) %>% count()` orders by `r instacart %>% distinct(user_id) %>% count()` buyers from `r instacart %>% distinct(department) %>% count()`.
-Orders can have multiple products in them. The dataset also contains the information on the aisles and departments for products purchased.
+There is a total of `r instacart %>% distinct(order_id) %>% count()` orders by `r instacart %>% distinct(user_id) %>% count()` buyers from `r instacart %>% distinct(department) %>% count()` departments. Orders can have multiple products in them.
+The dataset also contains the information on the aisles and departments for products purchased.
 There are `r instacart %>% distinct(product_id) %>% count()` unique products purchased. The most popular products purchased 
-is `r instacart %>% count(product_name) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(product_name) `,
+is `r instacart %>% count(product_name) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(product_name)`,
 most popular aisle is `r instacart %>%  count(aisle) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(aisle)`
-and the most popular department is
-`r instacart %>% count(department) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(department)`. 
-Orders are placed from `r instacart %>% pull(order_hour_of_day) %>% min()` 
+and the most popular department is `r instacart %>% count(department) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(department)`.  Orders are placed from `r instacart %>% pull(order_hour_of_day) %>% min()` 
 to `r instacart %>% pull(order_hour_of_day) %>% max()` hours of day.
 
-There are `r instacart %>% distinct(aisle) %>% count()` aisles. The aisles with the most ordered items are `r instacart %>% count(aisle) %>% arrange(desc(n)) %>% filter(row_number()<5) %>% select(aisle)`
-
 ## Plotting the number of orders per aisle in aisles with more than 10,000 orders
-
 ```{r plot}
 instacart %>% count(aisle) %>% filter(n>10000) %>%
 mutate(aisle = factor(aisle),
@@ -39,10 +38,6 @@ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
 labs(title = "Number of orders per aisle" )
 
 ```
-
-
-Arrange aisles sensibly, and organize your plot so others can read it.
-
 
 ## Top 3 products within "baking ingredients","dog food care" and "packaged vegetables fruits" aisles.
 
@@ -56,8 +51,9 @@ arrange(aisle,rank)
 ```
 
 ## Mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week
-```{r aisles}
-instacart %>% filter(product_name %in% c("Pink Lady Apples","Coffee Ice Cream")) %>%
+```{r aisles2, message = FALSE}
+instacart %>% 
+filter(product_name %in% c("Pink Lady Apples","Coffee Ice Cream")) %>%
 group_by(product_name,order_dow) %>%
 summarize(mean_hour = mean(order_hour_of_day))  %>%
 pivot_wider(
@@ -77,7 +73,7 @@ accel_data <- read_csv("./data/accel_data.csv") %>%
                                TRUE                                ~ "weekday"
                                         )
     ) %>%
-    relocate(week, day_id, day, weekday_v_weekend ) %>%
+    relocate(week, day_id, day, weekday_vs_weekend ) %>%
     mutate_at(5:1144, as.numeric)
 ```
 
@@ -90,11 +86,118 @@ accel_data %>%
   mutate(
     sum_day = rowSums(select(accel_data, 5:1144))
   ) %>% 
-  select(week, day_id, day, weekday_v_weekend, sum_day) 
+  select(week, day_id, day, weekday_vs_weekend, sum_day) 
 ```
 
 In each week, there is one day where the activity is minimal (Monday on Week 1 and Saturdays on Week 2 and 3). It seems that for Saturdays on Week 2 and 3 the activity was not tracked (1 per each minute).
 
 
+## Plotting daily activity
 
+```{r}
+accel_data %>% 
+  pivot_longer(
+    5:1444,
+    names_to = "time_point",
+    values_to = "activity"
+  ) %>% 
+  mutate(time_point = as.numeric(time_point))%>%
+  group_by(day,time_point) %>%
+  mutate(activity = sum(activity)) %>% # grouping by day to reduce dimensions
+  distinct (week, day, activity, time_point) %>%
+  ggplot(aes(x = time_point, y = activity, color = day)) +
+  geom_point(alpha = .3) + 
+  geom_smooth(method = "lm") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs (title = "24-hour activity time courses for each day")
+```
 
+There is an overall increase in activity by the end of the day, especially on Friday. Additionally, there is an increase in activity around noon on Sunday. We can see that this man usually sleeps till ~ 6AM as there is no activity till this time (except for Thursday when we see some random activity).
+
+# Problem 3
+
+```{r, include=FALSE}
+library(p8105.datasets)
+library(lubridate)
+data("ny_noaa") 
+```
+
+The dataset contains the information from the NOAA National Climatic Data Center. It has `r ny_noaa %>% nrow()` rows (observatons) and   `r ny_noaa %>% ncol()` columns and the following variables: `r ny_noaa %>% tbl_vars()`. Id represents a station and provides information about snow, precipitation and temperature at a given data. There is a lot of missing data:  `r ny_noaa %>% select(prcp)%>%is.na()%>%sum()` missing precipitation rows, `r ny_noaa %>% select(snow)%>%is.na()%>%sum()` missing snow rows, and `r ny_noaa %>% select(tmin)%>%is.na()%>%sum()+ny_noaa %>% select(tmax)%>%is.na()%>%sum()` total missing temperature rows.
+
+```{r ny_noaa}
+cleaned_noaa <- 
+ny_noaa %>%
+janitor::clean_names() %>%
+drop_na()%>%
+mutate_at(vars(date), funs(year, month, day))%>%
+filter (snow>=0 & prcp >=0) %>% # ensure that snow and precipitation are not negative
+mutate(tmax = as.numeric(tmax)/10, # converting to numeric and to C
+       tmin = as.numeric(tmin)/10,
+       year = as.numeric(year)) %>% 
+select (id, day, month, year, prcp, snow, snwd, tmin, tmax) 
+```
+
+The most common  mm of snowfall is `r cleaned_noaa %>% count (snow) %>% arrange(desc(n)) %>% filter(row_number()==1) %>% select(snow)` because there were more days without snow throughout a year.
+
+```{r ny_noaa_plot1,fig.height = 5, fig.width = 10, message = FALSE}
+
+January <-
+  cleaned_noaa %>%
+  filter(month == "1") %>%
+  group_by(id) %>%
+  summarize(mean_temp = mean(tmax)) %>%
+  ggplot(aes(x = id, y = mean_temp)) +
+  geom_point(color = "darkblue")+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  labs(title = "Average max temperature for each station in January",
+       x = "Station",
+       y = "Temperature, C")
+
+July <-
+  cleaned_noaa %>%
+  filter(month == "6") %>%
+  group_by(id) %>%
+  summarize(mean_temp = mean(tmax)) %>%
+  ggplot(aes(x = id, y = mean_temp)) +
+  geom_point(color = "orange") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  labs(title = "Average max temperature for each station in July",
+       x = "Station",
+       y = "Temperature, C")  
+
+January+July
+```
+
+There are outliers: a couple of stations that recorded extremele low temperature in Jan and one - high.In July there is only one station with temperature below 17.5 C.
+
+```{r ny_noaa_plot2,fig.height = 5, fig.width = 10, message = FALSE}
+library(patchwork)
+temp <-
+  cleaned_noaa %>%
+  select (tmin, tmax) %>%
+  pivot_longer(
+    tmax:tmin,
+    names_to = "observation", 
+    values_to = "temp") %>%
+  ggplot(aes(x = observation, y =  temp)) +
+  geom_boxplot(color = "darkblue")+
+  labs(title = "Min and max temperature distribution",
+       y = "Temperature",
+       x = "Max and min temperature groups")
+
+snow <-
+  cleaned_noaa %>%
+  filter(snow > 0 & snow < 100) %>%
+  ggplot(aes(x = year, y = snow, group = year)) +
+  geom_boxplot(color = "orange")+
+  scale_x_continuous(breaks=seq(1980, 2010, 1)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(title = "Snow distribution for each year",
+       y = "Snow, mm")  
+
+temp+snow
+```
